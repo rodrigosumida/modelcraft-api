@@ -1,6 +1,8 @@
 const mongoose = require("../database");
 const Schema = mongoose.Schema;
 
+const MaterialPerformance = require("./material_performance.model");
+
 let OrcamentoSchema = new Schema({
   status: { type: String, default: "estimativa" },
   cliente: { type: String, required: true },
@@ -44,50 +46,47 @@ let OrcamentoSchema = new Schema({
   chapa_fundo: { type: Number }
 });
 
-OrcamentoSchema.pre("save", function (next) {
+OrcamentoSchema.pre("save", async function (next) {
   if (!this.perimetro) {
     this.perimetro = (2 * this.comprimento + 2 * this.largura) / 1000;
   }
 
   // Alumínio Laminado
+  const laminado = await MaterialPerformance.findOne({ material: "laminado" });
+  const laminadoRatio = laminado.medias.valor_por_tempo || 3.043586296;
+
   this.laminado.volume = ((this.comprimento / 1000) * (this.largura / 1000) * (this.altura / 1000));
   this.laminado.massa = this.laminado.volume * 2750;
-  // Por enquanto, calcular o tempo com base no valor da planilha
-  // Depois que tiver o machine learning, fazer todo o processo usando os valores reais
-  // Provavelmente não aqui, mas da pra considerar
-  this.laminado.tempo = this.laminado.massa / 3.043586296;
+  this.laminado.tempo = this.laminado.massa / laminadoRatio;
 
   // Alumínio Fundido
+  const fundido = await MaterialPerformance.findOne({ material: "fundido" });
+  const fundidoRatio = fundido.medias.valor_por_tempo || 2.859348767;
+
   this.fundido.volume = this.area * 0.02 * 1.1;
   this.fundido.massa = this.fundido.volume * 2750;
-  // Por enquanto, calcular o tempo com base no valor da planilha
-  // Depois que tiver o machine learning, fazer todo o processo usando os valores reais
-  // Provavelmente não aqui, mas da pra considerar
-  this.fundido.tempo = this.fundido.massa / 2.859348767;
+  this.fundido.tempo = this.fundido.massa / fundidoRatio;
 
   // Alumínio Fundido a Zero
+  const fundidoZero = await MaterialPerformance.findOne({ material: "fundido_zero" });
+  const fundidoZeroRatio = fundidoZero.medias.valor_por_tempo || 6.686483424;
+  
   this.fundido_zero.volume = this.area * 0.015 * 1.1;
   this.fundido_zero.massa = this.fundido_zero.volume * 2750 + ((this.perimetro * 0.1 * 0.005) * 2750);
-  // Por enquanto, calcular o tempo com base no valor da planilha
-  // Depois que tiver o machine learning, fazer todo o processo usando os valores reais
-  // Provavelmente não aqui, mas da pra considerar
-  this.fundido_zero.tempo = this.fundido_zero.massa / 6.686483424 * 0.5;
+  this.fundido_zero.tempo = this.fundido_zero.massa / fundidoZeroRatio * 0.5;
 
   // Isopor
   // Futuramente, usar o machine learning para calcular o tamanho necessário do isopor
+  const isopor = await MaterialPerformance.findOne({ material: "isopor" });
+  const isoporRatio = isopor.medias.valor_por_tempo || 0.108585265;
+
   this.isopor.volume = (this.isopor.comprimento / 1000) * (this.isopor.largura / 1000) * (this.isopor.altura / 1000);
-  // Por enquanto, calcular o tempo com base no valor da planilha
-  // Depois que tiver o machine learning, fazer todo o processo usando os valores reais
-  // Provavelmente não aqui, mas da pra considerar
-  this.isopor.tempo = this.isopor.volume / 0.108585265;
+  this.isopor.tempo = this.isopor.volume / isoporRatio;
 
   // MDF
   // Futuramente, usar o machine learning para calcular o tamanho necessário do MDF
   this.mdf.chapas = ((this.mdf.comprimento / 1000) * (this.mdf.largura / 1000) * (this.mdf.altura / 1000)) / 0.127;
-  // Por enquanto, calcular o tempo com base no valor da planilha 
-  // Depois que tiver o machine learning, fazer todo o processo usando os valores reais
-  // Provavelmente não aqui, mas da pra considerar
-  this.mdf.tempo = this.mdf.chapas / 0.108585265 * 2;
+  this.mdf.tempo = this.mdf.chapas / isoporRatio * 2;
 
   // Chapa fundo
   this.chapa_fundo = ((this.comprimento + 80) / 1000) * ((this.largura + 80) / 1000) * 0.013 * 7800;

@@ -10,9 +10,11 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // Rotas
 const orcamento = require("./routes/orcamento.routes");
+const material_performance = require("./routes/material_performance.routes");
 
 // Endereços
 app.use("/api/orcamento", orcamento);
+app.use("/api/material-performance", material_performance);
 
 function normalizePort(val) {
   const port = parseInt(val, 10);

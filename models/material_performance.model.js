@@ -7,7 +7,7 @@ const MaterialPerformanceSchema = new Schema({
   historico: [
     {
       origem: { type: String },
-      valor: { type: Number },
+      valor: { type: Number, required: true },
       tempo: { type: Number, required: true },
     }
   ],
@@ -30,7 +30,7 @@ MaterialPerformanceSchema.methods.atualizarMedias = function () {
     }
   });
 
-  this.medias.volume_por_tempo = countValor ? somaValorPorTempo / countValor : null;
+  this.medias.valor_por_tempo = countValor ? somaValorPorTempo / countValor : null;
 };
 
 MaterialPerformanceSchema.pre("save", function (next) {
