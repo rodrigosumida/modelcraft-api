@@ -27,14 +27,31 @@ class OrcamentoController {
 
   async gerar_estimativa(req, res) {
     try {
-      const { comprimento, largura, altura, area } = req.body;
+      const { comprimento, largura, altura, area, isopor, mdf } = req.body;
 
-      const resp = await axios.post(
-        `${process.env.ML_SERVICE_URL || "http://localhost:8000"}/prever`,
-        { comprimento, largura, altura, area: Number(area) }
-      );
+      // --- Verificação de entrada vinda do front ---
+      const isIsoporValido =
+        isopor &&
+        isopor.comprimento > 0 &&
+        isopor.largura > 0 &&
+        isopor.altura > 0;
 
-      const { isopor, mdf } = resp.data;
+      const isMdfValido =
+        mdf && mdf.comprimento > 0 && mdf.largura > 0 && mdf.altura > 0;
+
+      let valoresIsopor = isIsoporValido ? isopor : null;
+      let valoresMdf = isMdfValido ? mdf : null;
+
+      // Se faltar qualquer um dos dois, consulta o ML apenas para os faltantes
+      if (!isIsoporValido || !isMdfValido) {
+        const resp = await axios.post(
+          `${process.env.ML_SERVICE_URL || "http://localhost:8000"}/prever`,
+          { comprimento, largura, altura, area: Number(area) }
+        );
+
+        if (!isIsoporValido) valoresIsopor = resp.data.isopor;
+        if (!isMdfValido) valoresMdf = resp.data.mdf;
+      }
 
       const perimetro = (2 * comprimento + 2 * largura) / 1000;
 
@@ -69,8 +86,8 @@ class OrcamentoController {
         },
         fundido: {},
         fundido_zero: {},
-        isopor,
-        mdf,
+        isopor: valoresIsopor,
+        mdf: valoresMdf,
         chapa_fundo: null,
       };
 
@@ -88,16 +105,18 @@ class OrcamentoController {
         (estimativa.fundido_zero.massa / fundidoZeroRatio) * 0.5;
 
       estimativa.isopor.volume =
-        (isopor.comprimento / 1000) *
-        (isopor.largura / 1000) *
-        (isopor.altura / 1000);
+        (estimativa.isopor.comprimento / 1000) *
+        (estimativa.isopor.largura / 1000) *
+        (estimativa.isopor.altura / 1000);
+
       estimativa.isopor.tempo = estimativa.isopor.volume / isoporRatio;
 
       estimativa.mdf.chapas =
-        ((mdf.comprimento / 1000) *
-          (mdf.largura / 1000) *
-          (mdf.altura / 1000)) /
+        ((estimativa.mdf.comprimento / 1000) *
+          (estimativa.mdf.largura / 1000) *
+          (estimativa.mdf.altura / 1000)) /
         0.127;
+
       estimativa.mdf.tempo = (estimativa.mdf.chapas / isoporRatio) * 2;
 
       estimativa.chapa_fundo =
